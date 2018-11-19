@@ -26,7 +26,7 @@ def maxpool(X, f, s):
 	return pool
 
 def softmax_cost(out,y):
-	eout = np.exp(out, dtype=np.float128)
+	eout = np.exp(out, dtype=np.float)#we dont have 128 a typo fixed
 	probs = eout/sum(eout)
 	
 	p = sum(y*probs)
@@ -252,7 +252,15 @@ def momentumGradDescent(batch, LEARNING_RATE, w, l, MU, filt1, filt2, bias1, bia
 	return [filt1, filt2, bias1, bias2, theta3, bias3, cost, acc]
 
 ## Predict class of each row of matrix X
-def predict(image, label, filt1, filt2, bias1, bias2, theta3, bias3):
+def predict(image, filt1, filt2, bias1, bias2, theta3, bias3):
+	
+	## l - channel
+	## w - size of square image
+	## l1 - No. of filters in Conv1
+	## l2 - No. of filters in Conv2
+	## w1 - size of image after conv1
+	## w2 - size of image after conv2
+
 	(l,w,w)=image.shape
 	(l1,f,f) = filt2[0].shape
 	l2 = len(filt2)
@@ -275,11 +283,32 @@ def predict(image, label, filt1, filt2, bias1, bias2, theta3, bias3):
 	pooled_layer = maxpool(conv2, 2, 2)	
 	fc1 = pooled_layer.reshape(((w2/2)*(w2/2)*l2,1))
 	out = theta3.dot(fc1) + bias3	#10*1
-	return np.argmax(out)
+	eout = np.exp(out, dtype=np.float)
+	probs = eout/sum(eout)
+	# probs = 1/(1+np.exp(-out))
 
-## Get the data from the file
-def unpickle(file):
-	import cPickle
-	with open(file, 'rb') as fo:
-		dict = cPickle.load(fo)
-	return dict
+	# print out
+	# print np.argmax(out), np.max(out)
+	return np.argmax(probs), np.max(probs)
+
+
+def extract_data(filename, num_images, IMAGE_WIDTH):
+	"""Extract the images into a 4D tensor [image index, y, x, channels].
+	Values are rescaled from [0, 255] down to [-0.5, 0.5].
+	"""
+	print('Extracting', filename)
+	with gzip.open(filename) as bytestream:
+		bytestream.read(16)
+		buf = bytestream.read(IMAGE_WIDTH * IMAGE_WIDTH * num_images)
+		data = np.frombuffer(buf, dtype=np.uint8).astype(np.float32)
+		data = data.reshape(num_images, IMAGE_WIDTH*IMAGE_WIDTH)
+		return data
+
+def extract_labels(filename, num_images):
+	"""Extract the labels into a vector of int64 label IDs."""
+	print('Extracting', filename)
+	with gzip.open(filename) as bytestream:
+		bytestream.read(8)
+		buf = bytestream.read(1 * num_images)
+		labels = np.frombuffer(buf, dtype=np.uint8).astype(np.int64)
+	return labels
